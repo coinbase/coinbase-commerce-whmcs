@@ -16,14 +16,4 @@ class Charge extends ApiResource
     {
         return 'charges';
     }
-
-    public function hasMetadataParam($key)
-    {
-        return isset($this->attributes['metadata'][$key]);
-    }
-
-    public function getMetadataParam($key)
-    {
-        return isset($this->attributes['metadata'][$key]) ? $this->attributes['metadata'][$key] : null;
-    }
 }

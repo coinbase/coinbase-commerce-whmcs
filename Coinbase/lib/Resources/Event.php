@@ -14,4 +14,14 @@ class Event extends ApiResource
     {
         return 'events';
     }
+
+    public function hasMetadataParam($key)
+    {
+        return isset($this->data['metadata'][$key]);
+    }
+
+    public function getMetadataParam($key)
+    {
+        return isset($this->data['metadata'][$key]) ? $this->data['metadata'][$key] : null;
+    }
 }

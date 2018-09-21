@@ -2,9 +2,12 @@
 require_once __DIR__ . '/Coinbase/init.php';
 require_once __DIR__ . '/Coinbase/const.php';
 
+use Illuminate\Database\Capsule\Manager as Capsule;
+
 if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
 }
+
 
 function coinbase_MetaData()
 {
@@ -66,21 +69,31 @@ function coinbase_link($params)
         die('Missing or invalid $params data.');
     }
 
+    $description = '';
+
+    try {
+        $description = Capsule::table('tblinvoiceitems')
+            ->where("invoiceid", "=", $params['invoiceid'])
+            ->value('description');
+    } catch (Exception $e) {
+        echo $e->getMessage();
+    }
+
     $chargeData = array(
         'local_price' => array(
             'amount' => $params['amount'],
             'currency' => $params['currency']
         ),
         'pricing_type' => 'fixed_price',
-        'name' => $params['companyname'],
-        'description' => $params['description'],
+        'name' => $params['description'],
+        'description' => empty($description) ? $params['description'] : $description,
         'metadata' => [
             METADATA_SOURCE_PARAM => METADATA_SOURCE_VALUE,
             'invoiceid' => $params['invoiceid'],
             'clientid' => $params['clientdetails']['userid'],
             'firstName' => isset($params['clientdetails']['firstname']) ? $params['clientdetails']['firstname'] : null,
             'lastName' => isset($params['clientdetails']['lastname']) ? $params['clientdetails']['lastname'] : null,
-            'email' => isset($params['clientdetails']['email']) ? $params['clientdetails']['email'] : null,
+            'email' => isset($params['clientdetails']['email']) ? $params['clientdetails']['email'] : null
         ],
         'redirect_url' => $params['returnurl']
     );
