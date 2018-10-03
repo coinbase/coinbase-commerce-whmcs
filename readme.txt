@@ -15,7 +15,6 @@ Installation:
 - Copy files to modules/gateways folder.
 - Activate the Coinbase Commerce module in your WHMCS admin panel (Setup -> Payments -> Payment Gateways -> All Payment Gateways).
 - Look for "Coinbase Commerce" button and click on.
-- Log into your Coinbase Commerce Dashboard and go to "Settings" section, copy the Api Key and Webhook Shared Secret from your account and paste them into the corresponding fields
-  at the module's setup page on your WHMCS site.
+- Log into your Coinbase Commerce Dashboard and go to "Settings" section, copy the Api Key and Webhook Shared Secret from your account and paste them into the corresponding fields at the module's setup page on your WHMCS site.
 - Copy the "Webhook subscription url" from your Coinbase Commerce's module setup and paste it into the "Webhook Url" field at the "Notifications" section of your Coinbase Commerce dashboard, then save the changes.
 - Click on "Save Changes" in your WHMCS site.
