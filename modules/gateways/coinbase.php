@@ -25,11 +25,15 @@ function coinbase_config()
     global $customadminpath;
 
     // Build callback URL.
-    $url_s = ($_SERVER['HTTPS'] == "on") ? "https://" : "http://";
-    $url1 = $url_s . $_SERVER["HTTP_HOST"] . $_SERVER["REQUEST_URI"];
-    $url2 = strpos($url1, $customadminpath);
-    $url3 = substr($url1, 0, $url2);
-    $callbackUrl = $url3 . "modules/gateways/callback/coinbase.php";
+    $protocol = ($_SERVER['HTTPS'] == "on") ? "https://" : "http://";
+    $url = $protocol . $_SERVER["HTTP_HOST"] . $_SERVER["REQUEST_URI"];
+    $url = substr($url, 0, strpos($url, $customadminpath));
+    $callbackUrl = $url . "modules/gateways/callback/coinbase.php";
+    if ($_SERVER['HTTPS'] == "on") {
+        $webhookDescription = "Please copy/paste <b>$callbackUrl</b> url  to Settings/Webhook subscriptions <b>https://commerce.coinbase.com/dashboard/settings</b>";
+    } else {
+        $webhookDescription = 'Please activate ssl for webhook notifications.';
+    }
 
     return array(
         'FriendlyName' => array(
@@ -51,7 +55,7 @@ function coinbase_config()
             'Type' => '',
             'Size' => '',
             'Default' => '',
-            'Description' => "Please copy/paste <b>$callbackUrl</b> url  to Settings/Webhook subscriptions <b>https://commerce.coinbase.com/dashboard/settings</b>"
+            'Description' => $webhookDescription
         ),
         'readme' => array(
             'FriendlyName' => '',
@@ -94,7 +98,8 @@ function coinbase_link($params)
             'lastName' => isset($params['clientdetails']['lastname']) ? $params['clientdetails']['lastname'] : null,
             'email' => isset($params['clientdetails']['email']) ? $params['clientdetails']['email'] : null
         ],
-        'redirect_url' => $params['returnurl']
+        'redirect_url' => $params['returnurl'] . "&paymentsuccess=true",
+        'cancel_url' => $params['returnurl'] . "&paymentfailed=true"
     );
 
     \Coinbase\ApiClient::init($params['apiKey']);

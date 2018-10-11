@@ -8,24 +8,36 @@ require_once __DIR__ . '/../../../includes/invoicefunctions.php';
 $gatewayModuleName = basename(__FILE__, '.php');
 $gatewayParams = getGatewayVariables($gatewayModuleName);
 
-// Die if module is not active.
-if (!$gatewayParams['type']) {
-    logTransaction($gatewayModuleName, $_POST, 'Not activated');
-    die('[ERROR] Coinbase Commerce module not activated.');
+function errorDebug($error) {
+    global $gatewayModuleName;
+    logTransaction($gatewayModuleName, $_POST, $error);
+    http_response_code(500);
+    die('[ERROR] ' . $error);
 }
 
+// Die if module is not active.
+if (!$gatewayParams['type']) {
+    errorDebug('Coinbase Commerce module not activated');
+}
+
+$secretKey = $gatewayParams['secretKey'];
+$apiKey = $gatewayParams['apiKey'];
 $headers = array_change_key_case(getallheaders());
 $signatureHeader = isset($headers[SIGNATURE_HEADER]) ? $headers[SIGNATURE_HEADER] : null;
 $payload = trim(file_get_contents('php://input'));
 
 try {
-    $event = \Coinbase\Webhook::buildEvent($payload, $signatureHeader, $gatewayParams['secretKey']);
+    $event = \Coinbase\Webhook::buildEvent($payload, $signatureHeader, $secretKey);
 } catch (\Exception $exception) {
-    logTransaction($gatewayModuleName, $_POST, $exception->getMessage());
-    die('[ERROR] ' . $exception->getMessage());
+    errorDebug($exception->getMessage());
 }
 
-$charge = $event->data;
+\Coinbase\ApiClient::init($apiKey);
+$charge = \Coinbase\Resources\Charge::retrieve($event->data['id']);
+
+if (!$charge) {
+    errorDebug('Charge was not found in Coinbase Commerce.');
+}
 
 if ($charge->metadata[METADATA_SOURCE_PARAM] != METADATA_SOURCE_VALUE) {
     die('[Error] not whmcs charge');
@@ -33,7 +45,7 @@ if ($charge->metadata[METADATA_SOURCE_PARAM] != METADATA_SOURCE_VALUE) {
 
 if (($invoiceId = $charge->metadata[METADATA_INVOICE_PARAM]) === null
     || ($userId = $charge->metadata[METADATA_CLIENT_PARAM]) === null) {
-    die('[Error] invoice id or client id not found in response');
+    errorDebug('Invoice ID or client ID was not found in response');
 }
 
 $orderData = \Illuminate\Database\Capsule\Manager::table('tblinvoices')
@@ -42,12 +54,10 @@ $orderData = \Illuminate\Database\Capsule\Manager::table('tblinvoices')
     ->get();
 
 if (!$orderData || !isset($orderData[0]->id)) {
-    logTransaction($gatewayModuleName, $_POST, '[Error] invoiceid is not exists');
-    die('[Error] invoiceid is not exists');
+    errorDebug(sprintf('Invoice ID "%s" is not exists', $invoiceId));
 }
 
-$invoiceId = checkCbInvoiceID($invoiceId, $gatewayModuleName);
-$invoiceTotal = $orderData[0]->total;
+checkCbInvoiceID($invoiceId, $gatewayModuleName);
 
 switch ($event->type) {
     case 'charge:confirmed':
@@ -57,21 +67,28 @@ switch ($event->type) {
         foreach ($charge->payments as $payment) {
             if (strtolower($payment['status']) === 'confirmed') {
                 $transactionId = $payment['transaction_id'];
-                $amount = isset($payment['value']['local']['amount']) ? $payment['value']['local']['amount'] : $invoiceTotal;
+                $amount = isset($payment['value']['local']['amount']) ? $payment['value']['local']['amount'] : $orderData[0]->total;
             }
         }
+        if ($transactionId && isset($charge['confirmed_at'])) {
+            checkCbTransID($transactionId);
+            addInvoicePayment($invoiceId, $transactionId, $amount, $fee, $gatewayModuleName);
+            logTransaction($gatewayModuleName, $payload, 'Charge is confirmed.');
+        } else {
+            errorDebug(sprintf('Invalid charge %s. No transaction found.', $charge['id']));
+        }
 
-        checkCbTransID($transactionId);
-        addInvoicePayment($invoiceId, $transactionId, $amount, $fee, $gatewayModuleName);
-        logTransaction($gatewayModuleName, $payload, 'Charge is confirmed.');
+        break;
+    case 'charge:pending':
+        logTransaction($gatewayModuleName, $payload, sprintf('Charge %s was pending. Charge has been detected but has not been confirmed yet.', $charge['id']));
         break;
     case 'charge:created':
-        logTransaction($gatewayModuleName, $payload, 'Charge was created. Awaiting payment.');
+        logTransaction($gatewayModuleName, $payload, sprintf('Charge %s was created. Awaiting payment.', $charge['id']));
         break;
     case 'charge:delayed':
-        logTransaction($gatewayModuleName, $payload, 'Charge was delayed.');
+        logTransaction($gatewayModuleName, $payload, sprintf('Charge %s was delayed.', $charge['id']));
         break;
     case 'charge:failed':
-        logTransaction($gatewayModuleName, $payload, 'Charge was failed.');
+        logTransaction($gatewayModuleName, $payload, sprintf('Charge %s was failed.', $charge['id']));
         break;
 }
