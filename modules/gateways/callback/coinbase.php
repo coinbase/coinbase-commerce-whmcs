@@ -5,90 +5,172 @@ require_once __DIR__ . '/../../../init.php';
 require_once __DIR__ . '/../../../includes/gatewayfunctions.php';
 require_once __DIR__ . '/../../../includes/invoicefunctions.php';
 
-$gatewayModuleName = basename(__FILE__, '.php');
-$gatewayParams = getGatewayVariables($gatewayModuleName);
+class Webhook
+{
+    /**
+     * @var string
+     */
+    private $gatewayModuleName;
 
-function errorDebug($error) {
-    global $gatewayModuleName;
-    logTransaction($gatewayModuleName, $_POST, $error);
-    http_response_code(500);
-    die('[ERROR] ' . $error);
-}
+    /**
+     * @var array
+     */
+    private $gatewayParams;
 
-// Die if module is not active.
-if (!$gatewayParams['type']) {
-    errorDebug('Coinbase Commerce module not activated');
-}
 
-$secretKey = $gatewayParams['secretKey'];
-$apiKey = $gatewayParams['apiKey'];
-$headers = array_change_key_case(getallheaders());
-$signatureHeader = isset($headers[SIGNATURE_HEADER]) ? $headers[SIGNATURE_HEADER] : null;
-$payload = trim(file_get_contents('php://input'));
+    public function __construct()
+    {
+        $this->init();
+    }
 
-try {
-    $event = \Coinbase\Webhook::buildEvent($payload, $signatureHeader, $secretKey);
-} catch (\Exception $exception) {
-    errorDebug($exception->getMessage());
-}
+    private function init()
+    {
+        $this->gatewayModuleName = basename(__FILE__, '.php');
+        $this->gatewayParams = getGatewayVariables($this->gatewayModuleName);
+        $this->checkIsModuleActivated();
+    }
 
-\Coinbase\ApiClient::init($apiKey);
-$charge = \Coinbase\Resources\Charge::retrieve($event->data['id']);
+    private function getModuleParam($paramName)
+    {
+        return array_key_exists($paramName, $this->gatewayParams) ? $this->gatewayParams[$paramName] : null;
+    }
 
-if (!$charge) {
-    errorDebug('Charge was not found in Coinbase Commerce.');
-}
+    private function checkIsModuleActivated()
+    {
+        // Die if module is not active.
+        if (!$this->getModuleParam('type')) {
+            $this->failProcess('Coinbase Commerce module not activated');
+        }
+    }
 
-if ($charge->metadata[METADATA_SOURCE_PARAM] != METADATA_SOURCE_VALUE) {
-    die('[Error] not whmcs charge');
-}
+    private function failProcess($errorMessage)
+    {
+        $this->log($errorMessage);
+        http_response_code(500);
+        die();
+    }
 
-if (($invoiceId = $charge->metadata[METADATA_INVOICE_PARAM]) === null
-    || ($userId = $charge->metadata[METADATA_CLIENT_PARAM]) === null) {
-    errorDebug('Invoice ID or client ID was not found in response');
-}
+    public function process()
+    {
+        $event = $this->getEvent();
+        $charge = $this->getCharge($event->data['id']);
 
-$orderData = \Illuminate\Database\Capsule\Manager::table('tblinvoices')
-    ->where('id', $invoiceId)
-    ->where('userid', $userId)
-    ->get();
+        if (($orderId = $charge->metadata[METADATA_INVOICE_PARAM]) === null
+            || ($userId = $charge->metadata[METADATA_CLIENT_PARAM]) === null) {
+            $this->failProcess('Invoice ID or client ID was not found in charge');
+        }
 
-if (!$orderData || !isset($orderData[0]->id)) {
-    errorDebug(sprintf('Invoice ID "%s" is not exists', $invoiceId));
-}
+        $order = $this->getOrder($orderId, $userId);
+        $lastTimeLine = end($charge->timeline);
 
-checkCbInvoiceID($invoiceId, $gatewayModuleName);
+        switch ($lastTimeLine['status']) {
+            case 'RESOLVED':
+            case 'COMPLETED':
+                $this->handlePaid($orderId, $charge);
+                return;
+            case 'PENDING':
+                $this->log(sprintf('Charge %s was pending. Charge has been detected but has not been confirmed yet.', $charge['id']));
+                return;
+            case 'NEW':
+                $this->log(sprintf('Charge %s was created. Awaiting payment.', $charge['id']));
+                return;
+            case 'UNRESOLVED':
+                // mark order as paid on overpaid or delayed
+                if ($lastTimeLine['context'] === 'OVERPAID' || $lastTimeLine['context'] === 'DELAYED') {
+                    $this->handlePaid($orderId, $charge);
+                } else {
+                    $this->log(sprintf('Charge %s was unresolved.', $charge['id']));
+                }
+                return;
+            case 'CANCELED':
+                $this->log(sprintf('Charge %s was canceled.', $charge['id']));
+                return;
+            case 'EXPIRED':
+                $this->log(sprintf('Charge %s was expired.', $charge['id']));
+                return;
+        }
+    }
 
-switch ($event->type) {
-    case 'charge:confirmed':
-        $transactionId = '';
+    private function handlePaid($orderId, $charge)
+    {
+        $transactionId = null;
         $fee = 0;
 
         foreach ($charge->payments as $payment) {
             if (strtolower($payment['status']) === 'confirmed') {
                 $transactionId = $payment['transaction_id'];
-                $amount = isset($payment['value']['local']['amount']) ? $payment['value']['local']['amount'] : $orderData[0]->total;
+                $amount = $payment['value']['local']['amount'];
             }
         }
-        if ($transactionId && isset($charge['confirmed_at'])) {
+
+        if ($transactionId) {
             checkCbTransID($transactionId);
-            addInvoicePayment($invoiceId, $transactionId, $amount, $fee, $gatewayModuleName);
-            logTransaction($gatewayModuleName, $payload, 'Charge is confirmed.');
+            addInvoicePayment($orderId, $transactionId, $amount, $fee, $this->gatewayModuleName);
+            $this->log(sprintf('Charge %s is confirmed.', $charge['id']));
         } else {
-            errorDebug(sprintf('Invalid charge %s. No transaction found.', $charge['id']));
+            $this->failProcess(sprintf('Invalid charge %s. No transaction found.', $charge['id']));
+        }
+    }
+
+    private function log($message)
+    {
+        logTransaction($this->gatewayModuleName, $_POST, $message);
+    }
+
+    private function getEvent()
+    {
+        $secretKey = $this->getModuleParam('secretKey');
+        $headers = array_change_key_case(getallheaders());
+        $signatureHeader = isset($headers[SIGNATURE_HEADER]) ? $headers[SIGNATURE_HEADER] : null;
+        $payload = trim(file_get_contents('php://input'));
+
+        try {
+            $event = \Coinbase\Webhook::buildEvent($payload, $signatureHeader, $secretKey);
+        } catch (\Exception $exception) {
+            $this->failProcess($exception->getMessage());
         }
 
-        break;
-    case 'charge:pending':
-        logTransaction($gatewayModuleName, $payload, sprintf('Charge %s was pending. Charge has been detected but has not been confirmed yet.', $charge['id']));
-        break;
-    case 'charge:created':
-        logTransaction($gatewayModuleName, $payload, sprintf('Charge %s was created. Awaiting payment.', $charge['id']));
-        break;
-    case 'charge:delayed':
-        logTransaction($gatewayModuleName, $payload, sprintf('Charge %s was delayed.', $charge['id']));
-        break;
-    case 'charge:failed':
-        logTransaction($gatewayModuleName, $payload, sprintf('Charge %s was failed.', $charge['id']));
-        break;
+        return $event;
+    }
+
+    private function getCharge($chargeId)
+    {
+        $apiKey = $this->getModuleParam('apiKey');
+        \Coinbase\ApiClient::init($apiKey);
+
+        try {
+            $charge = \Coinbase\Resources\Charge::retrieve($chargeId);
+        } catch (\Exception $exception) {
+            $this->failProcess($exception->getMessage());
+        }
+
+        if (!$charge) {
+            $this->failProcess('Charge was not found in Coinbase Commerce.');
+        }
+
+        if ($charge->metadata[METADATA_SOURCE_PARAM] != METADATA_SOURCE_VALUE) {
+            $this->failProcess( 'Not whmcs charge');
+        }
+
+        return $charge;
+    }
+
+    private function getOrder($id, $userId)
+    {
+        $orderData = \Illuminate\Database\Capsule\Manager::table('tblinvoices')
+            ->where('id', $id)
+            ->where('userid', $userId)
+            ->get();
+
+        if (!$orderData || !isset($orderData[0]->id)) {
+            $this->failProcess(sprintf('Order with ID "%s" is not exists', $id));
+        }
+
+        checkCbInvoiceID($id, $this->gatewayModuleName);
+
+        return reset($orderData);
+    }
 }
+
+$webhook = new Webhook();
+$webhook->process();

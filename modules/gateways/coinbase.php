@@ -8,7 +8,6 @@ if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
 }
 
-
 function coinbase_MetaData()
 {
     return array(
@@ -29,25 +28,26 @@ function coinbase_config()
     $url = $protocol . $_SERVER["HTTP_HOST"] . $_SERVER["REQUEST_URI"];
     $url = substr($url, 0, strpos($url, $customadminpath));
     $callbackUrl = $url . "modules/gateways/callback/coinbase.php";
-    if ($_SERVER['HTTPS'] == "on") {
-        $webhookDescription = "Please copy/paste <b>$callbackUrl</b> url  to Settings/Webhook subscriptions <b>https://commerce.coinbase.com/dashboard/settings</b>";
-    } else {
-        $webhookDescription = 'Please activate ssl for webhook notifications.';
+
+    $webhookDescription = "<p>Please copy/paste <b>$callbackUrl</b> url in <a href=\"https://commerce.coinbase.com/dashboard/settings\" target=\"_blank\">Settings &gt; Webhook subscriptions &gt; Add an endpoint</a></p>";
+
+    if ($_SERVER['HTTPS'] != 'on') {
+        $webhookDescription .= '<p style="color:red;">Please activate ssl for webhook notifications!!!</p>';
     }
 
     return array(
         'FriendlyName' => array(
             'Type' => 'System',
-            'Value' => 'Coinbase Commerce'
+            'Value' => 'Coinbase Commerce <a href=“https://commerce.coinbase.com/” target=“_blank” rel=“noopener”>(Learn more)</a>'
         ),
         'apiKey' => array(
             'FriendlyName' => 'API Key',
-            'Description' => 'API Key from Coinbase Commerce.',
+            'Description' => 'Get API Key <a href="https://commerce.coinbase.com/dashboard/settings" target="_blank">Settings &gt; API keys &gt; Create an API key</a>',
             'Type' => 'text'
         ),
         'secretKey' => array(
             'FriendlyName' => 'Shared Secret',
-            'Description' => 'Shared Secret Key from Coinbase Commerce Webhook subscriptions.',
+            'Description' => 'Get the Shared Key <a href="https://commerce.coinbase.com/dashboard/settings" target="_blank">Settings &gt; Show Shared Secrets</a>',
             'Type' => 'text'
         ),
         'webhookUrl' => array(
@@ -69,7 +69,7 @@ function coinbase_config()
 
 function coinbase_link($params)
 {
-    if (false === isset($params) || true === empty($params)) {
+    if (!isset($params) || empty($params)) {
         die('Missing or invalid $params data.');
     }
 
