@@ -74,7 +74,7 @@ class Webhook
                 $this->log(sprintf('Charge %s was created. Awaiting payment.', $charge['id']));
                 return;
             case 'UNRESOLVED':
-                // mark order as paid on overpaid or delayed
+                // mark order as paid on overpaid
                 if ($lastTimeLine['context'] === 'OVERPAID') {
                     $this->handlePaid($orderId, $charge);
                 } else {
