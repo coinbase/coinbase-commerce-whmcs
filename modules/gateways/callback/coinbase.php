@@ -17,7 +17,6 @@ class Webhook
      */
     private $gatewayParams;
 
-
     public function __construct()
     {
         $this->init();
@@ -75,8 +74,8 @@ class Webhook
                 $this->log(sprintf('Charge %s was created. Awaiting payment.', $charge['id']));
                 return;
             case 'UNRESOLVED':
-                // mark order as paid on overpaid or delayed
-                if ($lastTimeLine['context'] === 'OVERPAID' || $lastTimeLine['context'] === 'DELAYED') {
+                // mark order as paid on overpaid
+                if ($lastTimeLine['context'] === 'OVERPAID') {
                     $this->handlePaid($orderId, $charge);
                 } else {
                     $this->log(sprintf('Charge %s was unresolved.', $charge['id']));
@@ -149,7 +148,7 @@ class Webhook
         }
 
         if ($charge->metadata[METADATA_SOURCE_PARAM] != METADATA_SOURCE_VALUE) {
-            $this->failProcess( 'Not whmcs charge');
+            $this->failProcess( 'Not ' . METADATA_SOURCE_VALUE . ' charge');
         }
 
         return $charge;
