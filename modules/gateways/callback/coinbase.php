@@ -148,7 +148,7 @@ class Webhook
         }
 
         if ($charge->metadata[METADATA_SOURCE_PARAM] != METADATA_SOURCE_VALUE) {
-            $this->failProcess( 'Not whmcs charge');
+            $this->failProcess( 'Not ' . METADATA_SOURCE_VALUE . ' charge');
         }
 
         return $charge;
@@ -173,4 +173,3 @@ class Webhook
 
 $webhook = new Webhook();
 $webhook->process();
-
