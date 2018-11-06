@@ -111,3 +111,4 @@ function coinbase_link($params)
 
     return $form;
 }
+

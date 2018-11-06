@@ -17,7 +17,6 @@ class Webhook
      */
     private $gatewayParams;
 
-
     public function __construct()
     {
         $this->init();
@@ -76,7 +75,7 @@ class Webhook
                 return;
             case 'UNRESOLVED':
                 // mark order as paid on overpaid or delayed
-                if ($lastTimeLine['context'] === 'OVERPAID' || $lastTimeLine['context'] === 'DELAYED') {
+                if ($lastTimeLine['context'] === 'OVERPAID') {
                     $this->handlePaid($orderId, $charge);
                 } else {
                     $this->log(sprintf('Charge %s was unresolved.', $charge['id']));
@@ -174,3 +173,4 @@ class Webhook
 
 $webhook = new Webhook();
 $webhook->process();
+
