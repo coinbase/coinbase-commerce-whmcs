@@ -1,16 +1,16 @@
-Coinbase Commerce module for WHMCS, version 1.1
+## Coinbase Commerce module for WHMCS, version 1.1
 
-About Coinbase Commerce:
+### About Coinbase Commerce:
 - Coinbase Commerce is a new service that enables merchants to accept multiple cryptocurrencies directly into a user-controlled wallet.
 This module allows you to integrate Coinbase Commerce easily on your platform.
 Additional information can be found at:
 https://commerce.coinbase.com/
 
-Requirements:
+### Requirements:
 - Working WHMCS installation (tested up to version 7.4.2).
 - Coinbase Commerce account, you can register for free at https://commerce.coinbase.com/signup
 
-Installation:
+### Installation:
 - Copy files to modules folder to the root folder of your WHMCS installation.
 - Activate the Coinbase Commerce module in your WHMCS admin panel (Setup -> Payments -> Payment Gateways -> All Payment Gateways).
 - Look for "Coinbase Commerce" button and click on.
