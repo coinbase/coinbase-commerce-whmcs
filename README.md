@@ -11,8 +11,7 @@ https://commerce.coinbase.com/
 - Coinbase Commerce account, you can register for free at https://commerce.coinbase.com/signup
 
 ### Installation:
-- Unzip the "coinbasecommerce-for-whmcs_1.1.zip" file directly in the modules/gateways folder of your WHMCS installation.
-- Copy files to modules/gateways folder.
+- Copy modules folder to the root folder of your WHMCS installation.
 - Activate the Coinbase Commerce module in your WHMCS admin panel (Setup -> Payments -> Payment Gateways -> All Payment Gateways).
 - Look for "Coinbase Commerce" button and click on.
 - Log into your Coinbase Commerce Dashboard and go to "Settings" section, copy the Api Key and Webhook Shared Secret from your account and paste them into the corresponding fields at the module's setup page on your WHMCS site.

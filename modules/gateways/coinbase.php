@@ -24,14 +24,17 @@ function coinbase_config()
     global $customadminpath;
 
     // Build callback URL.
-    $protocol = ($_SERVER['HTTPS'] == "on") ? "https://" : "http://";
+    $isHttps = (isset ($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) == 'on')
+        || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https');
+
+    $protocol = $isHttps ? "https://" : "http://";
     $url = $protocol . $_SERVER["HTTP_HOST"] . $_SERVER["REQUEST_URI"];
     $url = substr($url, 0, strpos($url, $customadminpath));
     $callbackUrl = $url . "modules/gateways/callback/coinbase.php";
 
     $webhookDescription = "<p>Please copy/paste <b>$callbackUrl</b> url in <a href=\"https://commerce.coinbase.com/dashboard/settings\" target=\"_blank\">Settings &gt; Webhook subscriptions &gt; Add an endpoint</a></p>";
 
-    if ($_SERVER['HTTPS'] != 'on') {
+    if (!$isHttps) {
         $webhookDescription .= '<p style="color:red;">Please activate ssl for webhook notifications!!!</p>';
     }
 
@@ -111,4 +114,3 @@ function coinbase_link($params)
 
     return $form;
 }
-
