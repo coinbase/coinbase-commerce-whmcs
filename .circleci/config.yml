@@ -1,0 +1,21 @@
+version: 2 # use CircleCI 2.0
+jobs: # a collection of steps
+  build: # runs not using Workflows must have a `build` job as entry point
+    branches:
+      only:
+      - master
+    working_directory: ~/ci # directory where steps will run
+    docker: # run the steps with Docker
+    - image: circleci/php:7-fpm-node # ...with this image as the primary container; this is where all `steps` will run
+    environment:
+      ZIP_ARCHIVE: coinbase-commerce-whmcs.zip
+    steps: # a collection of executable commands
+    - checkout # special step to check out source code to working directory
+    - run: sudo composer self-update
+    - run: composer install -n --prefer-dist
+    - run:
+        name: Create zip archive
+        command: zip -r $ZIP_ARCHIVE modules
+    - run:
+        name: Upload archive to github releases
+        command: php ./.circleci/scripts/release_uploader.php --file=$(pwd)/$ZIP_ARCHIVE --repo==$REPOSITORY --token=$GITHUB_AUTH_TOKEN

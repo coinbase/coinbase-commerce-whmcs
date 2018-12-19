@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../Coinbase/init.php';
+require_once __DIR__ . '/../Coinbase/vendor/autoload.php';
 require_once __DIR__ . '/../Coinbase/const.php';
 require_once __DIR__ . '/../../../init.php';
 require_once __DIR__ . '/../../../includes/gatewayfunctions.php';
@@ -124,7 +124,7 @@ class Webhook
         $payload = trim(file_get_contents('php://input'));
 
         try {
-            $event = \Coinbase\Webhook::buildEvent($payload, $signatureHeader, $secretKey);
+            $event = \CoinbaseCommerce\Webhook::buildEvent($payload, $signatureHeader, $secretKey);
         } catch (\Exception $exception) {
             $this->failProcess($exception->getMessage());
         }
@@ -135,10 +135,10 @@ class Webhook
     private function getCharge($chargeId)
     {
         $apiKey = $this->getModuleParam('apiKey');
-        \Coinbase\ApiClient::init($apiKey);
+        \CoinbaseCommerce\ApiClient::init($apiKey);
 
         try {
-            $charge = \Coinbase\Resources\Charge::retrieve($chargeId);
+            $charge = \CoinbaseCommerce\Resources\Charge::retrieve($chargeId);
         } catch (\Exception $exception) {
             $this->failProcess($exception->getMessage());
         }
