@@ -1,0 +1,12 @@
+{
+    "name": "coinbase/coinbase-commerce-oscommerce",
+    "description": "Coinbase Commerce plugin for OsCommerce",
+    "type": "composer-plugin",
+    "license": "Apache-2.0",
+    "require": {
+        "coinbase/coinbase-commerce": "^1.0.0"
+    },
+    "config": {
+        "vendor-dir": "modules/gateways/Coinbase/vendor"
+    }
+}

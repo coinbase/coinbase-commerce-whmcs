@@ -1,6 +1,4 @@
 <?php
-namespace Coinbase;
-
 class ApiResponse
 {
     const REQUEST_ID_HEADER = 'x-request-id';

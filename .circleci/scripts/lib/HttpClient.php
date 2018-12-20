@@ -1,8 +1,6 @@
 <?php
-namespace Coinbase;
-
-use Coinbase\Exceptions\CurlErrorException;
-use Coinbase\ApiResponse;
+require_once __DIR__ . '/CurlErrorException.php';
+require_once __DIR__ . '/ApiResponse.php';
 
 class HttpClient
 {
@@ -59,34 +57,61 @@ class HttpClient
 
     // END OF USER DEFINED TIMEOUTS
 
+    public function urlEncode($arr, $prefix = null)
+    {
+        if (!is_array($arr)) {
+            return $arr;
+        }
+        $r = [];
+        foreach ($arr as $k => $v) {
+            if (is_null($v)) {
+                continue;
+            }
+            if ($prefix) {
+                if ($k !== null && (!is_int($k) || is_array($v))) {
+                    $k = $prefix."[".$k."]";
+                } else {
+                    $k = $prefix."[]";
+                }
+            }
+            if (is_array($v)) {
+                $enc = self::urlEncode($v, $k);
+                if ($enc) {
+                    $r[] = $enc;
+                }
+            } else {
+                $r[] = urlencode($k)."=".urlencode($v);
+            }
+        }
+        return implode("&", $r);
+    }
+
     public function request($method, $absUrl, $params, $body, $headers)
     {
         $method = strtolower($method);
         $opts = [];
 
+        if (count($params) > 0) {
+            $encoded = $this->urlEncode($params);
+            $absUrl = "$absUrl?$encoded";
+        }
+
         if ($method == 'get') {
             $opts[CURLOPT_HTTPGET] = 1;
-            if (count($params) > 0) {
-                $encoded = \Coinbase\Util::urlEncode($params);
-                $absUrl = "$absUrl?$encoded";
-            }
         } elseif ($method == 'post') {
             $opts[CURLOPT_POST] = 1;
-            $body = json_encode($body);
             $opts[CURLOPT_POSTFIELDS] = $body;
             $headers[] = 'Content-Length: ' . strlen($body);
         } elseif ($method == 'put') {
             $opts[CURLOPT_PUT] = 1;
-            $body = json_encode($body);
             $opts[CURLOPT_POSTFIELDS] = $body;
             $headers[] = 'Content-Length: ' . strlen($body);
-
+        } elseif ($method == 'patch') {
+            $opts[CURLOPT_CUSTOMREQUEST] = 'PATCH';
+            $opts[CURLOPT_POSTFIELDS] = $body;
+            $headers[] = 'Content-Length: ' . strlen($body);
         } elseif ($method == 'delete') {
             $opts[CURLOPT_CUSTOMREQUEST] = 'DELETE';
-            if (count($params) > 0) {
-                $encoded = \Coinbase\Util::urlEncode($params);
-                $absUrl = "$absUrl?$encoded";
-            }
         }
 
         // Create a callback to capture HTTP headers for the response

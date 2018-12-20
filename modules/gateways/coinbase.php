@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/Coinbase/init.php';
+require_once __DIR__ . '/Coinbase/vendor/autoload.php';
 require_once __DIR__ . '/Coinbase/const.php';
 
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -105,8 +105,8 @@ function coinbase_link($params)
         'cancel_url' => $params['returnurl'] . "&paymentfailed=true"
     );
 
-    \Coinbase\ApiClient::init($params['apiKey']);
-    $chargeObj = \Coinbase\Resources\Charge::create($chargeData);
+    \CoinbaseCommerce\ApiClient::init($params['apiKey']);
+    $chargeObj = \CoinbaseCommerce\Resources\Charge::create($chargeData);
 
     $form = '<form action="' . $chargeObj->hosted_url . '" method="GET">';
     $form .= '<input type="submit" value="' . $params['langpaynow'] . '" />';
