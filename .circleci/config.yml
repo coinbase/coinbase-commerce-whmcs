@@ -18,4 +18,4 @@ jobs: # a collection of steps
         command: zip -r $ZIP_ARCHIVE modules
     - run:
         name: Upload archive to github releases
-        command: php ./.circleci/scripts/release_uploader.php --file=$(pwd)/$ZIP_ARCHIVE --repo==$REPOSITORY --token=$GITHUB_AUTH_TOKEN
+        command: php ./.circleci/scripts/release_uploader.php --file=$(pwd)/$ZIP_ARCHIVE --repo==$REPO --github_user=$GITHUB_USER --token=$GITHUB_AUTH_TOKEN
