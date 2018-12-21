@@ -5,12 +5,23 @@ require_once __DIR__ . '/lib/HttpClient.php';
 class AssetUploader
 {
     const GITHUB_API_REPOS = 'https://api.github.com/repos';
-    const USER = 'coinbase';
-    const REPO_NAME = 'coinbase-commerce-whmcs';
+
     private $pluginVersion;
 
-    public function __construct($file, $token, $repo)
+    private $repo;
+
+    private $githubUser;
+
+    public function __construct($file, $token, $repo, $githubUser)
     {
+        if (empty($file)) {
+            throw new Exception("File not provided");
+        }
+
+        if (empty($token)) {
+            throw new Exception("Token not found");
+        }
+
         $config = parse_ini_file(dirname(__DIR__) . '/params.ini');
         $this->pluginVersion = $config['version'];
 
@@ -18,17 +29,27 @@ class AssetUploader
             throw new Exception("Please set plugin version");
         }
 
+        if (empty($config['repo'])) {
+            throw new Exception("Please set repository");
+        }
+
+        if (empty($config['github_user'])) {
+            throw new Exception("Please set github user");
+        }
+
         $this->headers = [
             sprintf('Authorization: token %s', $token),
             'User-Agent: Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1)'
         ];
+
         if (!file_exists($file)) {
             throw new Exception(sprintf("Not found file for uploading. Provided filepath: %s", $file));
         }
 
         $this->file = $file;
         $this->client = HttpClient::getInstance();
-        $this->repo = isset($repo) ? $repo : self::USER . DIRECTORY_SEPARATOR . self::REPO_NAME;
+        $this->repo = !empty($repo) ? $repo : $config['repo'];
+        $this->githubUser = !empty($githubUser) ? $githubUser : $config['github_user'];
     }
 
     public function run()
@@ -38,7 +59,7 @@ class AssetUploader
     }
 
     function createRelease() {
-        $apiUrl = self::GITHUB_API_REPOS . DIRECTORY_SEPARATOR . $this->repo . DIRECTORY_SEPARATOR . 'releases';
+        $apiUrl = self::GITHUB_API_REPOS . DIRECTORY_SEPARATOR . $this->githubUser . DIRECTORY_SEPARATOR . $this->repo . DIRECTORY_SEPARATOR . 'releases';
 
         $response = $this->client->request('GET', $apiUrl, [], '', $this->headers);
         // Check is release with current plugin version == tag name exists
@@ -62,8 +83,8 @@ class AssetUploader
     function uploadAssets($release) {
 
         $path_parts = pathinfo($this->file);
-        $fileLabel = self::REPO_NAME . '_' . str_replace('.', '_', $this->pluginVersion) . '.' . $path_parts['extension'];
-        $fileName = self::REPO_NAME . '_' . str_replace('.', '_', $this->pluginVersion) . '_' . time()  . '.' . $path_parts['extension'];
+        $fileLabel = $this->repo . '_' . str_replace('.', '_', $this->pluginVersion) . '.' . $path_parts['extension'];
+        $fileName = $this->repo . '_' . str_replace('.', '_', $this->pluginVersion) . '_' . time()  . '.' . $path_parts['extension'];
 
         // Check is previous file was uploaded
         if (isset($release['assets'])) {
@@ -118,14 +139,16 @@ class AssetUploader
 $longopts  = array(
     "token:",
     "file:",
-    "repo::"
+    "repo::",
+    "github_user::"
 );
 
 $options = getopt('', $longopts);
 
-$file = $options['file'];
-$token = $options['token'];
-$repo = $options['repo'];
+$file = isset($options['file']) ? $options['file']: '';
+$token = isset($options['token']) ? $options['token']: '';
+$repo = isset($options['repo']) ? $options['repo']: '';
+$githubUser = isset($options['github_user']) ? $options['github_user']: '';
 
-$handler = new AssetUploader($file, $token, $repo);
+$handler = new AssetUploader($file, $token, $repo, $githubUser);
 $handler->run();
