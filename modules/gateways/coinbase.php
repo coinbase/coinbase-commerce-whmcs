@@ -83,7 +83,7 @@ function coinbase_link($params)
             ->where("invoiceid", "=", $params['invoiceid'])
             ->value('description');
         // Truncate descriptions longer than 200 per Commerce API requirements
-        $description = (strlen($description) > 200) ? substr($description,0,7).'...' : $description;
+        $description = (strlen($description) > 200) ? substr($description,0,197).'...' : $description;
     } catch (Exception $e) {
     }
 
