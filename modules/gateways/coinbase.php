@@ -82,6 +82,8 @@ function coinbase_link($params)
         $description = Capsule::table('tblinvoiceitems')
             ->where("invoiceid", "=", $params['invoiceid'])
             ->value('description');
+        // Truncate descriptions longer than 200 per Commerce API requirements
+        $description = (strlen($description) > 200) ? substr($description,0,197).'...' : $description;
     } catch (Exception $e) {
     }
 
