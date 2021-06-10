@@ -1,4 +1,6 @@
 ## Coinbase Commerce module for WHMCS, version 1.2
+**Note: This repository is not actively maintained.**
+
 
 ### About Coinbase Commerce:
 - Coinbase Commerce is a new service that enables merchants to accept multiple cryptocurrencies directly into a user-controlled wallet.
